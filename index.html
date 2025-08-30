@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Simple P.Mopuri Bills & Expenses Tracker</title>
+<title>Simple Bills & Expenses Tracker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root{--bg:#0b0f14;--panel:#121823;--row:#1c2533;--text:#e6edf3;--muted:#a9b3c1;--accent:#67d4ff;--danger:#ff7676;}
@@ -10,9 +10,8 @@
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
   header{padding:16px 20px;border-bottom:1px solid #1b2432;background:var(--panel)}
   h1{margin:0;font-size:20px}
-  main{padding:16px 20px;max-width:1100px;margin:0 auto}
+  main{padding:16px 20px;max-width:1000px;margin:0 auto}
   .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-  .controls > *{margin:0}
   select,input[type="date"],input[type="number"],input[type="text"],button{
     background:#0f1622;border:1px solid #233044;color:var(--text);padding:6px 8px;border-radius:6px}
   button{cursor:pointer}
@@ -27,7 +26,7 @@
   td[contenteditable="true"]:focus{box-shadow:inset 0 0 0 2px #2b6cb0}
   .summary{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);margin:10px 0 16px}
   .summary .pill{background:#0f1622;border:1px solid #233044;padding:6px 10px;border-radius:999px}
-  .add-row{display:grid;grid-template-columns:80px 1.2fr 1fr 110px 150px 90px 75px 150px 130px 1.4fr 120px;gap:6px;margin:12px 0}
+  .add-row{display:grid;grid-template-columns:80px 1.5fr 110px 150px 90px 75px 150px 130px 1.4fr 120px;gap:6px;margin:12px 0}
   .hint{color:var(--muted);font-size:12px;margin-top:6px}
   .right{text-align:right}
   .center{text-align:center}
@@ -64,13 +63,11 @@
 
     <div class="summary" id="summary"></div>
 
-<!-- Quick add row -->
     <table>
       <thead>
         <tr>
           <th>Quarter</th>
           <th>Bill</th>
-          <th>Category</th>
           <th class="right">Amount</th>
           <th>Due date</th>
           <th class="center">Required</th>
@@ -83,277 +80,59 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
-  <!-- Quick add row -->
-<div class="add-row">
-  <select id="addQuarter">
-    <option value="AUTO">Auto from date</option>
-    <option value="Q1">Q1</option>
-    <option value="Q2">Q2</option>
-    <option value="Q3">Q3</option>
-    <option value="Q4">Q4</option>
-  </select>
-  <input type="text" id="addName" placeholder="Bill/Expense name" />
-  <input type="text" id="addCat" placeholder="Category (e.g., Utilities)" />
-  <input type="number" id="addAmt" placeholder="Amount" step="0.01" />
-  <input type="date" id="addDue" />
-  <select id="addReq">
-    <option value="true">Required</option>
-    <option value="false">Optional</option>
-  </select>
-  <select id="addPaid">
-    <option value="false">Unpaid</option>
-    <option value="true">Paid</option>
-  </select>
-  <input type="date" id="addPaidDate" />
-  <button class="primary" id="btnAdd">➕ Add Bill</button>
-</div>
-<div class="hint">Tip: You can click most cells to edit directly. Changes save automatically.</div>
-  </main>
-<script>
-  const KEY = 'mopuri-simple-tracker-v1';
 
+    <!-- Add Bill form moved here -->
+    <div class="add-row">
+      <select id="addQuarter">
+        <option value="AUTO">Auto from date</option>
+        <option value="Q1">Q1</option>
+        <option value="Q2">Q2</option>
+        <option value="Q3">Q3</option>
+        <option value="Q4">Q4</option>
+      </select>
+      <input type="text" id="addName" placeholder="Bill/Expense name" />
+      <input type="number" id="addAmt" placeholder="Amount" step="0.01" />
+      <input type="date" id="addDue" />
+      <select id="addReq">
+        <option value="true">Required</option>
+        <option value="false">Optional</option>
+      </select>
+      <select id="addPaid">
+        <option value="false">Unpaid</option>
+        <option value="true">Paid</option>
+      </select>
+      <input type="date" id="addPaidDate" />
+      <input type="text" id="addPaidBy" placeholder="Paid by (name)" />
+      <input type="text" id="addNotes" placeholder="Notes" />
+      <button class="primary" id="btnAdd">➕ Add Bill</button>
+    </div>
+    <div class="hint">Tip: You can click most cells to edit directly. Changes save automatically.</div>
+
+    <div class="hint muted">Your data is saved in this browser (localStorage). No internet or account needed.</div>
+  </main>
+
+<script>
+  const KEY = 'mopuri-simple-tracker-v2';
   let items = [];
 
   function quarterFromDate(dateStr){
     if(!dateStr) return 'Q1';
-    const m = new Date(dateStr + 'T00:00:00').getMonth() + 1; // 1-12
-    if(m>=1 && m<=3) return 'Q3';   // Jan–Mar (financial year style Jul–Jun)
-    if(m>=4 && m<=6) return 'Q4';   // Apr–Jun
-    if(m>=7 && m<=9) return 'Q1';   // Jul–Sep
-    return 'Q2';                    // Oct–Dec
+    const m = new Date(dateStr + 'T00:00:00').getMonth() + 1;
+    if(m>=1 && m<=3) return 'Q3';
+    if(m>=4 && m<=6) return 'Q4';
+    if(m>=7 && m<=9) return 'Q1';
+    return 'Q2';
   }
 
   function seedData(){
     return [
-      {q:'Q1', name:'Rent', cat:'Housing', amt:2300, due:'2025-07-01', req:true,  paid:true,  paidDate:'2025-07-01', paidBy:'Prakash', notes:''},
-      {q:'Q1', name:'Electricity', cat:'Utilities', amt:210.50, due:'2025-07-25', req:true,  paid:false, paidDate:'', paidBy:'', notes:'ActewAGL'},
-      {q:'Q1', name:'Water', cat:'Utilities', amt:95.30, due:'2025-08-05', req:true,  paid:false, paidDate:'', paidBy:'', notes:''},
-      {q:'Q2', name:'Gas', cat:'Utilities', amt:140.00, due:'2025-10-18', req:true,  paid:true,  paidDate:'2025-10-18', paidBy:'Partner', notes:''},
-      {q:'Q2', name:'Council Rates', cat:'Housing', amt:550.00, due:'2025-11-15', req:true,  paid:false, paidDate:'', paidBy:'', notes:'ACT Rates'},
-      {q:'Q3', name:'Car Insurance', cat:'Insurance', amt:780.00, due:'2026-02-14', req:true,  paid:false, paidDate:'', paidBy:'', notes:'Comprehensive'},
-      {q:'Q3', name:'Childcare Fees', cat:'Family', amt:420.00, due:'2026-02-07', req:true,  paid:false, paidDate:'', paidBy:'', notes:''},
-      {q:'Q4', name:'Strata', cat:'Housing', amt:760.00, due:'2026-05-20', req:true,  paid:false, paidDate:'', paidBy:'', notes:''},
-      {q:'Q4', name:'Health Insurance', cat:'Insurance', amt:265.00, due:'2026-06-02', req:true,  paid:true,  paidDate:'2026-06-02', paidBy:'Prakash', notes:''},
-      {q:'Q4', name:'Amazon Prime', cat:'Subscriptions', amt:9.99, due:'2026-06-15', req:false, paid:false, paidDate:'', paidBy:'', notes:''}
-    ];
-  }
-
-  function load(){
-    try{
-      items = JSON.parse(localStorage.getItem(KEY) || '[]');
-      if(!Array.isArray(items) || items.length === 0){
-        items = seedData();
-        save();
-      }
-    }catch(e){
-      items = seedData();
-      save();
-    }
-  }
-
-  function save(){
-    localStorage.setItem(KEY, JSON.stringify(items));
-    renderSummary();
-  }
-
-  function addItem(){
-    const qSelect = document.getElementById('addQuarter').value;
-    const name = document.getElementById('addName').value.trim();
-    const cat  = document.getElementById('addCat').value.trim();
-    const amt  = parseFloat(document.getElementById('addAmt').value || '0');
-    const due  = document.getElementById('addDue').value;
-    const req  = document.getElementById('addReq').value === 'true';
-    const paid = document.getElementById('addPaid').value === 'true';
-    const paidDate = document.getElementById('addPaidDate').value || (paid ? today() : '');
-    const paidBy   = document.getElementById('addPaidBy').value.trim();
-    const notes    = document.getElementById('addNotes').value.trim();
-
-    if(!name){ alert('Please enter a name'); return; }
-    const q = qSelect === 'AUTO' ? quarterFromDate(due) : qSelect;
-
-    items.push({q, name, cat, amt: isNaN(amt)?0:amt, due, req, paid, paidDate, paidBy, notes});
-    save();
-    render();
-
-    // clear quick add fields
-    document.getElementById('addName').value = '';
-    document.getElementById('addCat').value = '';
-    document.getElementById('addAmt').value = '';
-    document.getElementById('addDue').value = '';
-    document.getElementById('addReq').value = 'true';
-    document.getElementById('addPaid').value = 'false';
-    document.getElementById('addPaidDate').value = '';
-    document.getElementById('addPaidBy').value = '';
-    document.getElementById('addNotes').value = '';
-  }
-
-  function today(){
-    const d = new Date();
-    return d.toISOString().slice(0,10);
-  }
-
-  function render(){
-    const qFilter = document.getElementById('filterQuarter').value;
-    const paidFilter = document.getElementById('filterPaid').value;
-    const tbody = document.getElementById('tbody');
-    tbody.innerHTML = '';
-
-    items.forEach((b, i) => {
-      if(qFilter !== 'ALL' && b.q !== qFilter) return;
-      if(paidFilter === 'PAID' && !b.paid) return;
-      if(paidFilter === 'UNPAID' && b.paid) return;
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="center">${b.q}</td>
-        <td contenteditable="true" oninput="updateText(${i}, 'name', this.innerText)">${escapeHtml(b.name)}</td>
-        <td contenteditable="true" oninput="updateText(${i}, 'cat', this.innerText)">${escapeHtml(b.cat)}</td>
-        <td class="right" contenteditable="true" oninput="updateAmount(${i}, this.innerText)">${Number(b.amt||0).toFixed(2)}</td>
-        <td class="center"><input type="date" value="${b.due||''}" onchange="updateDue(${i}, this.value)" /></td>
-        <td class="center"><input type="checkbox" ${b.req?'checked':''} onchange="updateBool(${i}, 'req', this.checked)" /></td>
-        <td class="center"><input type="checkbox" ${b.paid?'checked':''} onchange="togglePaid(${i}, this.checked)" /></td>
-        <td class="center"><input type="date" value="${b.paidDate||''}" onchange="updateText(${i}, 'paidDate', this.value)" /></td>
-        <td contenteditable="true" oninput="updateText(${i}, 'paidBy', this.innerText)">${escapeHtml(b.paidBy||'')}</td>
-        <td contenteditable="true" oninput="updateText(${i}, 'notes', this.innerText)">${escapeHtml(b.notes||'')}</td>
-        <td class="actions">
-          <button class="danger" onclick="removeItem(${i})">🗑️ Delete</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    renderSummary();
-  }
-
-  function renderSummary(){
-    const qFilter = document.getElementById('filterQuarter').value;
-    const paidFilter = document.getElementById('filterPaid').value;
-
-    let total=0, paidSum=0, unpaidSum=0, count=0, unpaidCount=0;
-    items.forEach(b=>{
-      if(qFilter !== 'ALL' && b.q !== qFilter) return;
-      if(paidFilter === 'PAID' && !b.paid) return;
-      if(paidFilter === 'UNPAID' && b.paid) return;
-
-      const amt = Number(b.amt||0);
-      total += amt; count++;
-      if(b.paid) paidSum += amt; else { unpaidSum += amt; unpaidCount++; }
-    });
-
-    const s = document.getElementById('summary');
-    s.innerHTML = `
-      <div class="pill">Items: ${count}</div>
-      <div class="pill">Total: $${total.toFixed(2)}</div>
-      <div class="pill">Paid: $${paidSum.toFixed(2)}</div>
-      <div class="pill">Unpaid: $${unpaidSum.toFixed(2)} (${unpaidCount})</div>
-    `;
-  }
-
-  function updateText(i, field, value){
-    items[i][field] = (value||'').trim();
-    save();
-  }
-
-  function updateAmount(i, value){
-    const num = parseFloat(String(value).replace(/[^0-9.\-]/g,'')) || 0;
-    items[i].amt = num;
-    save();
-    render(); // refresh to format with 2 decimals
-  }
-
-  function updateBool(i, field, checked){
-    items[i][field] = !!checked;
-    save();
-  }
-
-  function updateDue(i, dateStr){
-    items[i].due = dateStr;
-    // auto-update quarter if "Auto" behavior is desired; here we always recalc
-    items[i].q = quarterFromDate(dateStr);
-    save();
-    render();
-  }
-
-  function togglePaid(i, isPaid){
-    items[i].paid = !!isPaid;
-    if(isPaid && !items[i].paidDate) items[i].paidDate = today();
-    if(!isPaid) items[i].paidDate = '';
-    save();
-    render();
-  }
-
-  function removeItem(i){
-    if(!confirm('Delete this bill?')) return;
-    items.splice(i,1);
-    save();
-    render();
-  }
-
-  function exportJSON(){
-    const blob = new Blob([JSON.stringify(items, null, 2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'mopuri-bills.json';
-    a.click();
-  }
-
-  function importJSON(){
-    const json = prompt('Paste JSON array of items here:');
-    if(!json) return;
-    try{
-      const arr = JSON.parse(json);
-      if(Array.isArray(arr)){
-        items = arr.map(normalizeItem);
-        save();
-        render();
-      }else{
-        alert('Invalid JSON (expected an array)');
-      }
-    }catch(e){
-      alert('Invalid JSON: ' + e.message);
-    }
-  }
-
-  function normalizeItem(o){
-    return {
-      q: String(o.q||'Q1'),
-      name: String(o.name||''),
-      cat: String(o.cat||''),
-      amt: Number(o.amt||0),
-      due: (o.due||''),
-      req: !!o.req,
-      paid: !!o.paid,
-      paidDate: (o.paidDate||''),
-      paidBy: String(o.paidBy||''),
-      notes: String(o.notes||'')
-    };
-  }
-
-  function resetDemo(){
-    if(!confirm('Reset to demo data? This will replace your current list.')) return;
-    items = seedData();
-    save();
-    render();
-  }
-
-  function escapeHtml(str){
-    return String(str||'')
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;');
-  }
-
-  // Wire up controls
-  document.getElementById('btnAdd').addEventListener('click', addItem);
-  document.getElementById('btnExport').addEventListener('click', exportJSON);
-  document.getElementById('btnImport').addEventListener('click', importJSON);
-  document.getElementById('btnReset').addEventListener('click', resetDemo);
-  document.getElementById('filterQuarter').addEventListener('change', render);
-  document.getElementById('filterPaid').addEventListener('change', render);
-
-  // Init
-  load();
-  render();
-</script>
-</body>
-</html>
+      {q:'Q1', name:'Rent', amt:2300, due:'2025-07-01', req:true, paid:true, paidDate:'2025-07-01', paidBy:'Prakash', notes:''},
+      {q:'Q1', name:'Electricity', amt:210.50, due:'2025-07-25', req:true, paid:false, paidDate:'', paidBy:'', notes:'ActewAGL'},
+      {q:'Q1', name:'Water', amt:95.30, due:'2025-08-05', req:true, paid:false, paidDate:'', paidBy:'', notes:''},
+      {q:'Q2', name:'Gas', amt:140.00, due:'2025-10-18', req:true, paid:true, paidDate:'2025-10-18', paidBy:'Partner', notes:''},
+      {q:'Q2', name:'Council Rates', amt:550.00, due:'2025-11-15', req:true, paid:false, paidDate:'', paidBy:'', notes:'ACT Rates'},
+      {q:'Q3', name:'Car Insurance', amt:780.00, due:'2026-02-14', req:true, paid:false, paidDate:'', paidBy:'', notes:'Comprehensive'},
+      {q:'Q3', name:'Childcare Fees', amt:420.00, due:'2026-02-07', req:true, paid:false, paidDate:'', paidBy:'', notes:''},
+      {q:'Q4', name:'Strata', amt:760.00, due:'2026-05-20', req:true, paid:false, paidDate:'', paidBy:'', notes:''},
+      {q:'Q4', name:'Health Insurance', amt:265.00, due:'2026-06-02', req:true, paid:true, paidDate:'2026-06-02', paidBy:'Prakash', notes:''},
+      {q:'Q4', name:'Amazon
